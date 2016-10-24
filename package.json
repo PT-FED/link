@@ -1,0 +1,24 @@
+{
+  "name": "link",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/link.min.js",
+  "author": "ligang",
+  "license": "ISC",
+  "keywords": [
+    "link",
+    "link.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PT-FED/link"
+  },
+  "devDependencies": {
+    "jshint": "^2.9.3",
+    "webpack": "^1.13.2"
+  },
+  "scripts": {
+    "lint": "jshint src/link.js",
+    "test": "npm run lint"
+  }
+}

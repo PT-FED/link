@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>test link</title>
+    <script src="../src/link.js" charset="UTF-8"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        ul, ol {
+            list-style: none;
+        }
+
+        ul li {
+            display: inline-block;
+        }
+
+        div {
+            width: 500px;
+            height: 300px;
+            border: solid red 1px;
+            overflow: hidden;
+        }
+
+        img {
+            width: 500px;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+
+<h3>示例一</h3>
+<p>
+    <a href="#/a" link tpl-url="./a.html" container="#example-1">a</a>
+    <a href="#/b" link tpl-url="./b.html" container="#example-1">b</a>
+</p>
+<div id="example-1">
+    index
+</div>
+
+
+
+<h3>示例二</h3>
+<div class="example-2">
+</div>
+<ul>
+    <li><a href="#/1" link tpl="<img src='./images/1.jpg'>" link-container=".example-2">1</a></li>
+    <li><a href="#/2" link tpl="<img src='./images/2.jpg'>" link-container=".example-2">2</a></li>
+    <li><a href="#/3" link tpl="<img src='./images/3.jpg'>" link-container=".example-2">3</a></li>
+</ul>
+
+
+
+
+<h3>示例三</h3>
+<div class="example-3">
+
+</div>
+<a href="javascript:;" link data-link-tpl-selector="#tpl-example-3" data-link-container=".example-3">selector</a>
+<script type="text/html" id="tpl-example-3">
+    <p>afeawfwe</p>
+</script>
+
+
+
+<h3>示例四</h3>
+<div id="example-4" style="display: none;">
+</div>
+<a href="javascript:;" link tpl="<img src='./images/1.jpg'>" data-link-container="#example-4" data-link-status="toggle">toggle</a>
+
+
+
+<h3>示例五</h3>
+<a href="javascript:;" link data-link-tpl="<img src='./images/1.jpg'>" data-link-container=".example-5-1" data-link-group="group1">image1</a>
+<div class="example-5-1"></div>
+<a href="javascript:;" link data-link-tpl="<img src='./images/2.jpg'>" data-link-container=".example-5-2" data-link-group="group1">image2</a>
+<div class="example-5-2"></div>
+<a href="javascript:;" link data-link-tpl="<img src='./images/3.jpg'>" data-link-container=".example-5-3" data-link-group="group1">image3</a>
+<div class="example-5-3"></div>
+
+
+
+</body>
+</html>
