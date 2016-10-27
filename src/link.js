@@ -18,116 +18,151 @@
     var VERSION = "1.0.0",
 
         BEHAVE = {
-            SHOW: "block",
-            HIDE: "none",
+            VISIBLE: "visible",
+            HIDDEN: "hidden",
             TOGGLE: "toggle"
         },
 
-        LINK_PREFIX = "data",
-        LINK_ITEM = "link",
-        LINK_ITEM_ADDRESS = "href",
+        LINK_PREFIX_DATA = "data",
+        LINK_PREFIX_LINK = "link",
         /**
          * link属性
          * 例如:
          *  "tpl" ==> "link-tpl" ==> "data-link-tpl"
-         *  "tpl" ==> LINK_ITEM + "-" + "tpl" ==> LINK_PREFIX + "-" + LINK_ITEM + "-tpl"
+         *  "tpl" ==> LINK_PREFIX_LINK + "-" + "tpl" ==> LINK_PREFIX_DATA + "-" + LINK_PREFIX_LINK + "-tpl"
          */
-        LINK_ITEM_TEMPLATE = "tpl",
-        LINK_ITEM_TEMPLATE_URL = "tpl-url",
-        LINK_ITEM_TEMPLATE_SELECTOR = "tpl-selector",
-        LINK_ITEM_TARGET = "container",
-        LINK_ITEM_BEHAVE = "status",  // "show","hide","toggle",function(){}
-        LINK_ITEM_ACTION = "action",
-        LINK_ITEM_GROUP = "group",
+        LINK_ATTR_TEMPLATE = "tpl",
+        LINK_ATTR_CONTAINER = "container",
+        LINK_ATTR_STATUS = "status",  // "visible","hidden","toggle",function(){}
+        LINK_ATTR_ACTION = "action",
+        LINK_ATTR_GROUP = "group",
 
         EMPTY_FN = function (){};
 
-    var cache = {count : 0};    // LINK_ITEM_ADDRESS + LINK_ITEM_TARGET 为key
+    /**
+     * @FIXME
+     * location.pathname + LINK_ATTR_TEMPLATE_URL 只缓存tpl-url的内容  (文件树)
+     * 缺点:不同页面加载同一资源,不能做到缓存
+     */
+    var cache = {
+        count : 0,
+        set: function(key, value){
+            cache[location.pathname + key] = value;
+        },
+        get: function(key){
+            return cache[location.pathname + key];
+        }
+    };
 
     var util = {
+        extend: function(targetObj, sourceObj){
+            for(var pop in sourceObj){
+                if(sourceObj.hasOwnProperty(pop)){
+                    targetObj[pop] = sourceObj[pop];
+                }
+            }
+            return targetObj;
+        },
         isFunction: function(obj){
             return Object.prototype.toString.call(obj) === "[object Function]";
         },
         isEmpty: function(obj){
             return obj === null || obj === undefined;
+        },
+        isSelector: function(selector){
+            return /^[#.][0-9a-zA-z_-]+/.test(selector);
+        },
+        isFilePath: function(path){
+            return /\.[0-9a-zA-z]+$/.test(path);
         }
     };
 
     var view = {
         searchUp: function searchUp(node, type) {
             if (node === document.body || node === document) return undefined;   // 向上递归到body就停
-            if (this.hasAttribute(node, type)) {
+            if (node.hasAttribute(type)) {
                 return node;
             }
             return searchUp(node.parentNode, type);
         },
-        getHtmlContent: function getHtmlContent(url, callback) {
-            if (!url) return callback();
-            var xhr = new XMLHttpRequest();
-            xhr.onreadystatechange = function (event) {
-                if (xhr.readyState == 4) {
-                    if ((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304) {
-                        return callback(xhr.responseText);
-                    } else {
-                        console.error("Request was unsuccessful: " + xhr.status);
-                        return callback();
+        getHtmlContent: function getHtmlContent(template, callback) {
+            if(!template) return callback("");
+            if(util.isSelector(template)){  // 选择器(.或者#开头)
+                return callback(this.html(document.querySelector(template)));
+            }else if (!util.isFilePath(template)){  // 纯文本(无文件后缀)
+                return callback(template);
+            }else{  // url
+                var content = cache.get(template);
+                if (content) return callback(content);
+                var xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = function (event) {
+                    if (xhr.readyState == 4) {
+                        if ((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304) {
+                            content = xhr.responseText;
+                            cache.set(template, content);
+                            return callback(content);
+                        } else {
+                            console.error("Request was unsuccessful: " + xhr.status);
+                            return callback();
+                        }
                     }
-                }
-            };
-            xhr.open("get", url, true);
-            xhr.send(null);
-        },
-        behave: function(node, behave){
-            if(util.isFunction(behave)) return behave();
-            var displayBehave = BEHAVE[behave.toUpperCase()] || BEHAVE.SHOW;
-            if(displayBehave === BEHAVE.TOGGLE){
-                displayBehave = (node.style.display === BEHAVE.HIDE ? BEHAVE.SHOW : BEHAVE.HIDE); // 注意""
+                };
+                xhr.open("get", template, true);
+                xhr.send(null);
             }
-            node.style.display = displayBehave;
+        },
+        resolveLink: function(node){
+            return {
+                template: view.attr(node, LINK_ATTR_TEMPLATE),
+                container: view.attr(node, LINK_ATTR_CONTAINER),
+                behave: view.attr(node, LINK_ATTR_STATUS) || BEHAVE.VISIBLE,
+                action: view.attr(node, LINK_ATTR_ACTION) || EMPTY_FN,
+                group: view.attr(node, LINK_ATTR_GROUP)
+            }
+        },
+        behave: function(targetNode, behave){
+            if(util.isFunction(behave)) return behave();
+            var displayBehave = BEHAVE[behave.toUpperCase()];
+            if(displayBehave === BEHAVE.TOGGLE){
+                displayBehave = (targetNode.style.visibility === BEHAVE.VISIBLE ? BEHAVE.HIDDEN : BEHAVE.VISIBLE); // 注意""
+            }
+            targetNode.style.visibility = displayBehave;
         },
         /**
          * @REVISIT
          */
-        group: function(node, groupNode, groupName){
+        group: function(targetNode, node, groupName){
             if(util.isEmpty(groupName)) return false;
-            var groupAttr = this.hitAttr(groupNode, LINK_ITEM_GROUP);
-            var elements = this.getElements("["+groupAttr+"='"+groupName+"']");
+            var attrName = this.hitAttr(node, LINK_ATTR_GROUP);
+            var elements = document.querySelectorAll("["+attrName+"='"+groupName+"']");
             for(var i = 0, len = elements.length; i < len; i++){
-                var ele = elements[i],
-                    target = this.getElements(this.attr(ele, LINK_ITEM_TARGET))[0];
-                target.style.display = "none";
+                document.querySelector(this.attr(elements[i], LINK_ATTR_CONTAINER)).style.display = "none";
             }
-            node.style.display = "block";
+            targetNode.style.display = "block";
         },
-        hitAttr: function(node, attr){
-            if(this.hasAttribute(node, attr)){
-                return attr;
-            }else if(this.hasAttribute(node, LINK_ITEM + "-" + attr)){
-                return LINK_ITEM + "-" + attr;
-            }else if(this.hasAttribute(node, LINK_PREFIX + "-" + LINK_ITEM + "-" + attr)){
-                return LINK_PREFIX + "-" + LINK_ITEM + "-" + attr;
+        hitAttr: function(targetNode, attr){
+            var attributes = targetNode.attributes;
+            for(var i = 0, len = attributes.length; i < len; i++){
+                var nodeAttr = attributes[i].name;   // "link-url"
+                var reg = new RegExp("("+LINK_PREFIX_DATA+"-)?("+LINK_PREFIX_LINK+"-)?(.*)");
+                if(attr === nodeAttr.replace(reg, "$3")){
+                    return nodeAttr;
+                }
             }
         },
-        getElements: function (selector) {
-            return document.querySelectorAll(selector);
+        attr: function (targetNode, attr) {
+            var attribute = this.hitAttr(targetNode, attr);
+            return targetNode.getAttribute(attribute);
         },
-        hasAttribute: function (node, attr) {
-            return node.hasAttribute(attr);
-        },
-        attr: function (node, attr) {
-            var attribute = this.hitAttr(node, attr);
-            return node.getAttribute(attribute);
-        },
-        html: function(node, html){
+        html: function(targetNode, html){
             if(html === undefined)
-                return node.innerHTML;
-            node.innerHTML = html;
+                return targetNode.innerHTML;
+            targetNode.innerHTML = html;
         }
     };
 
     var handleEvent = {
-        init: function (link) {
-            this.link = link;
+        init: function () {
             this.unbind();
             this.bind();
         },
@@ -138,36 +173,20 @@
             document.addEventListener("click", this.click, false);
         },
         click: function (event) {
-            var node = view.searchUp(event.target, LINK_ITEM);
+            var node = view.searchUp(event.target, LINK_PREFIX_LINK);
             if (node) {
-                var url = view.attr(node, LINK_ITEM_ADDRESS),
-                    target = view.attr(node, LINK_ITEM_TARGET),
-                    cacheKey = url + target;
-                var linkItem = handleEvent.link.getData(cacheKey);
-                if (!linkItem) {
-                    linkItem = {
-                        template: view.attr(node, LINK_ITEM_TEMPLATE),
-                        templateUrl: view.attr(node, LINK_ITEM_TEMPLATE_URL),
-                        templateSelector: view.attr(node, LINK_ITEM_TEMPLATE_SELECTOR),
-                        targetNodes: view.getElements(target),
-                        behave: view.attr(node, LINK_ITEM_BEHAVE) || "",
-                        action: view.attr(node, LINK_ITEM_ACTION) || EMPTY_FN,
-                        group: view.attr(node, LINK_ITEM_GROUP)
-                    };
-                    handleEvent.link.setData(cacheKey, linkItem);
-                }
+                var linkDom = view.resolveLink(node);
 
-                view.getHtmlContent(linkItem.templateUrl, function (content) {
-                    var targetNodes = linkItem.targetNodes,
-                        targetNode = "",
-                        htmlContent = content || linkItem.template || view.html(view.getElements(linkItem.templateSelector)[0]);
+                view.getHtmlContent(linkDom.template, function (content) {
+                    var targetNodes = document.querySelectorAll(linkDom.container),
+                        targetNode = "";
 
                     for (var i = 0, len = targetNodes.length; i < len; i++) {
                         targetNode = targetNodes[i];
-                        view.html(targetNode, htmlContent);
-                        view.behave(targetNode, linkItem.behave);
-                        view.group(targetNode, node, linkItem.group);
-                        linkItem.action(targetNode);    // action封装第一个参数为"目标元素"
+                        view.html(targetNode, content);
+                        view.behave(targetNode, linkDom.behave);
+                        view.group(targetNode, node, linkDom.group);
+                        linkDom.action(targetNode);    // action封装第一个参数为"目标元素"
                     }
                 });
             }
@@ -175,14 +194,13 @@
     };
 
 
-    function Link() {}
+    function Link(config) {
+        config = util.extend({cache: false}, config);
+        this.init(config);
+    }
     Link.prototype = {
-        setData: function (key, value) {
-            cache.count++;
-            cache[key] = value;
-        },
-        getData: function(index){
-            return cache[index];
+        init: function(config){
+            handleEvent.init();
         },
         destroy: function(){
             cache = {count : 0};
@@ -194,16 +212,17 @@
     });
 
 
+    function init(config) {
+        var link = new Link(config);
+        return link;
+    }
     function destroy(link) {
         link.destroy();
     }
-    function init() {
-        var link = new Link();
-        link.version = VERSION;
-        link.destroy = destroy;
-        handleEvent.init(link);
-        return link;
-    }
 
-    return init();
+    return {
+        version: VERSION,
+        init: init,
+        destroy: destroy
+    };
 }));

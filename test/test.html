@@ -35,8 +35,8 @@
 
 <h3>示例一</h3>
 <p>
-    <a href="#/a" link tpl-url="./a.html" container="#example-1">a</a>
-    <a href="#/b" link tpl-url="./b.html" container="#example-1">b</a>
+    <a id="123" href="#/a" link tpl="./a.html" container="#example-1">a</a>
+    <a href="#/b" link tpl="./b.html" container="#example-1">b</a>
 </p>
 <div id="example-1">
     index
@@ -60,7 +60,7 @@
 <div class="example-3">
 
 </div>
-<a href="javascript:;" link data-link-tpl-selector="#tpl-example-3" data-link-container=".example-3">selector</a>
+<a href="javascript:;" link data-link-tpl="#tpl-example-3" data-link-container=".example-3">selector</a>
 <script type="text/html" id="tpl-example-3">
     <p>afeawfwe</p>
 </script>
@@ -68,7 +68,7 @@
 
 
 <h3>示例四</h3>
-<div id="example-4" style="display: none;">
+<div id="example-4">
 </div>
 <a href="javascript:;" link tpl="<img src='./images/1.jpg'>" data-link-container="#example-4" data-link-status="toggle">toggle</a>
 
@@ -83,6 +83,8 @@
 <div class="example-5-3"></div>
 
 
-
+<script>
+    link.init();
+</script>
 </body>
 </html>
