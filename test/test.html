@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>test link</title>
     <script src="../src/link.js" charset="UTF-8"></script>
+    <script src="../src/event.js" charset="UTF-8"></script>
     <style>
         body {
             margin: 0;
@@ -60,17 +61,22 @@
 <div class="example-3">
 
 </div>
-<a href="javascript:;" link data-link-tpl="#tpl-example-3" data-link-container=".example-3">selector</a>
+<a href="javascript:;" link data-link-tpl="#tpl-example-3" data-link-container=".example-3" status="toggle">selector</a>
 <script type="text/html" id="tpl-example-3">
     <p>afeawfwe</p>
 </script>
 
+<script>
+    function a(){
+        console.log(123);
+    }
+</script>
 
 
 <h3>示例四</h3>
 <div id="example-4">
 </div>
-<a href="javascript:;" link tpl="<img src='./images/1.jpg'>" data-link-container="#example-4" data-link-status="toggle">toggle</a>
+<a href="javascript:;" link tpl="<img src='./images/1.jpg'>" data-link-container="#example-4" data-link-status="toggle" animate="300">toggle</a>
 
 
 
@@ -82,9 +88,13 @@
 <a href="javascript:;" link data-link-tpl="<img src='./images/3.jpg'>" data-link-container=".example-5-3" data-link-group="group1">image3</a>
 <div class="example-5-3"></div>
 
-
 <script>
-    link.init();
+    link.on("link.animate", function(args){
+        console.log("link.animate" + this.data.a);
+        console.log("animate配置参数:" + args.animate);
+        console.log("动态替换内容:"+ args.content);
+        args.targetNode.innerHTML = args.content;
+    }, {a: 1});
 </script>
 </body>
 </html>
