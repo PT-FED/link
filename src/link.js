@@ -1,5 +1,14 @@
 /**
  * Created by ligang on 16/10/19.
+ * 待解决问题:
+ * 1. action需要在模板插入成功后再触发,需要机制!!
+ * 2. 缓存树
+ * 3. 遍历文件获取所有地址信息
+ * 4. 监听hashchange变化
+ *  4.1 直接调转:redirect
+ *  4.2 路由变化前和成功处理
+ * 5. 异步资源加载问题,防抖
+ * 6. 文档API及示例
  */
 (function (global, name, factory) {
     "use strict";
@@ -37,6 +46,13 @@
         LINK_ATTR_ANIMATE = "animate",    // 动画
         LINK_ATTR_ACTION = "action",
         LINK_ATTR_GROUP = "group",
+
+        /**
+         * 发布事件
+         */
+        EVENTS = {
+            ANIMATE: "link.animate" // 动画事件
+        },
 
         EMPTY_FN = function (){};
 
@@ -128,7 +144,7 @@
             targetNode.style.visibility = displayBehave;
         },
         animate: function(targetNode, animate, content){
-            Event.trigger("link.animate", {targetNode: targetNode, animate: animate, content: content});
+            Event.trigger(EVENTS.ANIMATE, {targetNode: targetNode, animate: animate, content: content});
         },
         /**
          * @REVISIT
@@ -163,7 +179,7 @@
         }
     };
 
-    var Event = (function(){
+    var event = (function(){
         // cache = {"link.animate": [{fn: fn1, data: data1}, {fn: fn2, data: data2}]}
         var _caches = {},
             _listen,
@@ -285,9 +301,9 @@
         link.version = VERSION;
         link.destroy = destroy;
         // 事件相关
-        link.listen = link.on = Event.listen;
-        link.remove = link.off = Event.remove;
-        link.trigger = link.emit = Event.trigger;
+        link.listen = link.on = event.listen;
+        link.remove = link.off = event.remove;
+        link.trigger = link.emit = event.trigger;
         return link;
     }
     function destroy(link) {
