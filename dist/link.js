@@ -40,6 +40,7 @@
          *  "tpl" ==> "link-tpl" ==> "data-link-tpl"
          *  "tpl" ==> LINK_PREFIX_LINK + "-" + "tpl" ==> LINK_PREFIX_DATA + "-" + LINK_PREFIX_LINK + "-tpl"
          */
+        LINK_ATTR_HREF = "href",
         LINK_ATTR_TEMPLATE = "tpl",
         LINK_ATTR_CONTAINER = "container",
         LINK_ATTR_STATUS = "status",  // "visible","hidden","toggle"
@@ -55,6 +56,148 @@
         },
 
         EMPTY_FN = function (){};
+
+    var event = (function(){
+        // cache = {"link.animate": [{fn: fn1, data: data1}, {fn: fn2, data: data2}]}
+        var _caches = {},
+            _listen,
+            _trigger,
+            _remove;
+
+        _listen = function(keys, fn, data){
+            // 支持多个事件，共享一个处理函数
+            // 多个事件使用“逗号、空格、分号”间隔
+            var keyAry = keys.split(/[\,\s\;]/);
+            var index = keyAry.length;
+            while (index){
+                index--;
+                var key = keyAry[index];
+                if(!_caches[key]){
+                    _caches[key] = [];
+                }
+                _caches[key].push({fn: fn, data: data});
+            }
+        };
+        _remove = function(key, fn){
+            if(_caches[key]){
+                if(fn){
+                    for(var i = 0, len = _caches[key].length; i < len; i++){
+                        if(_caches[key][i].fn === fn){
+                            _caches[key].splice(i, 1);
+                        }
+                    }
+                }else{
+                    _caches[key] = [];
+                }
+            }
+        };
+        /**
+         * 触发顺序：A.B.C ==> A.B ==> A
+         */
+        _trigger = function(key, args){
+            var event,
+                aimKey = key,
+                keyAry = key.split(".");
+            for(var i = 0, len = keyAry.length; i < len; i++) {
+                event = _caches[aimKey];
+                if (event) {
+                    var j = 0, length = event.length;
+                    while (j < length) {
+                        event[j].fn(args);
+                        j++;
+                    }
+                }
+                keyAry.pop();
+                aimKey = keyAry.join(".");
+            }
+        };
+
+        return {
+            listen: _listen,
+            remove: _remove,
+            trigger: _trigger
+        };
+    })();
+
+    var RADIX = 1000000;
+    function Node(id, path, pid, config){
+        this.id = id;
+        this.path = path;
+        this.pid = pid;
+        this.config = config;
+    }
+    Node.prototype.setId = function(id){
+        this.id = id;
+        return this;
+    };
+    Node.prototype.setPid = function(pid){
+        this.pid = pid;
+        return this;
+    };
+
+    /* 树 */
+    function Tree(){
+        this.nodeList = [];    // [node1, node2] 稀疏数组,下标为ID
+        this.levelBox = [];    // 存储等级,及当前等级对应的最后一个值 下标为等级:[{maxId: 3000005, items;[node1, node2]}]
+    }
+    Tree.prototype.insert = function(path, config){
+        path = path.replace(/\/*$/, "");
+        var node = new Node(null, path, null, config);
+        var id = this.generateId(node);
+        this.nodeList[id] = node.setId(id);
+        return this;
+    };
+    Tree.prototype.generateId = function(node){
+        var level = node.path.split("/").length;
+        if(!this.levelBox[level]){
+            this.levelBox[level] = {maxId: level * RADIX, items: []};
+        }
+        var id = this.levelBox[level].maxId + 1;
+        this.levelBox[level].maxId = id;
+        return id;
+    };
+    Tree.prototype.resolveParent = function(){
+        var nodeList = this.nodeList.concat();
+        var handledNodeList = [];
+        nodeList.forEach(function (node) {
+            for(var i = handledNodeList.length - 1; i >= 0; i--){
+                var handleNode = handledNodeList[i];
+                if(node.path.indexOf(handleNode.path) === 0){
+                    node.setPid(handleNode.id);
+                    break;
+                }
+            }
+            handledNodeList.push(node);
+        });
+    };
+    Tree.prototype.collect = function(event){
+        var node = view.searchUp(event.target, LINK_PREFIX_LINK);
+        if (node) {
+            var linkDom = view.resolveLink(node);
+            this.insert(view.attr(node, LINK_ATTR_HREF), linkDom);
+        }
+    };
+    Tree.prototype.print = function(){
+        var nodeList = this.nodeList.concat();
+        var result = {};
+        nodeList.forEach(function(node){
+           result[node.path] = node.config;
+        });
+        console.log(result);
+    },
+    Tree.prototype.start = function(){
+        var that = this;
+        // document.removeEventListener("click", this.collect.call(this), false);
+        // @FIXME 移除事件 注意冲突
+        document.addEventListener("click", function(event){
+            that.collect(event);
+        }, false);
+    };
+    Tree.prototype.end = function(){
+        // document.removeEventListener("click", this.collect, false);
+        this.resolveParent();
+        this.print();
+    };
 
     /**
      * @FIXME
@@ -144,7 +287,7 @@
             targetNode.style.visibility = displayBehave;
         },
         animate: function(targetNode, animate, content){
-            Event.trigger(EVENTS.ANIMATE, {targetNode: targetNode, animate: animate, content: content});
+            event.trigger(EVENTS.ANIMATE, {targetNode: targetNode, animate: animate, content: content});
         },
         /**
          * @REVISIT
@@ -178,68 +321,6 @@
             targetNode.innerHTML = html;
         }
     };
-
-    var event = (function(){
-        // cache = {"link.animate": [{fn: fn1, data: data1}, {fn: fn2, data: data2}]}
-        var _caches = {},
-            _listen,
-            _trigger,
-            _remove;
-
-        _listen = function(keys, fn, data){
-            // 支持多个事件，共享一个处理函数
-            // 多个事件使用“逗号、空格、分号”间隔
-            var keyAry = keys.split(/[\,\s\;]/);
-            var index = keyAry.length;
-            while (index){
-                index--;
-                var key = keyAry[index];
-                if(!_caches[key]){
-                    _caches[key] = [];
-                }
-                _caches[key].push({fn: fn, data: data});
-            }
-        };
-        _remove = function(key, fn){
-            if(_caches[key]){
-                if(fn){
-                    for(var i = 0, len = _caches[key].length; i < len; i++){
-                        if(_caches[key][i].fn === fn){
-                            _caches[key].splice(i, 1);
-                        }
-                    }
-                }else{
-                    _caches[key] = [];
-                }
-            }
-        };
-        /**
-         * 触发顺序：A.B.C ==> A.B ==> A
-         */
-        _trigger = function(key, args){
-            var event,
-                aimKey = key,
-                keyAry = key.split(".");
-            for(var i = 0, len = keyAry.length; i < len; i++) {
-                event = _caches[aimKey];
-                if (event) {
-                    var j = 0, length = event.length;
-                    while (j < length) {
-                        event[j].fn(args);
-                        j++;
-                    }
-                }
-                keyAry.pop();
-                aimKey = keyAry.join(".");
-            }
-        };
-
-        return {
-            listen: _listen,
-            remove: _remove,
-            trigger: _trigger
-        };
-    })();
 
     var handleEvent = {
         init: function () {
@@ -277,7 +358,6 @@
         }
     };
 
-
     function Link(config) {
         config = util.extend({cache: false}, config);
         this.init(config);
@@ -295,7 +375,6 @@
         value: Link
     });
 
-
     function init() {
         var link = new Link();
         link.version = VERSION;
@@ -304,6 +383,14 @@
         link.listen = link.on = event.listen;
         link.remove = link.off = event.remove;
         link.trigger = link.emit = event.trigger;
+        // 目录树相关
+        var fileTree = new Tree();
+        link.startRecording = function() {
+            fileTree.start();
+        };
+        link.endRecording = function(){
+            fileTree.end();
+        };
         return link;
     }
     function destroy(link) {
